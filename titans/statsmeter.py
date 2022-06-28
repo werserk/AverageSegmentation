@@ -1,6 +1,6 @@
 class StatsMeter:
     def __init__(self, functions):
-        self.functuions = functions
+        self.functions = functions
         self.stats = {function.__name__: 0 for function in self.functions}
         
     def update(self, pred, gt):
