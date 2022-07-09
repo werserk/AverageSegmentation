@@ -3,10 +3,10 @@ import wandb
 import tqdm
 import os
 
+import titans
 import utils
 from utils import beaty_utils
 from utils import cfg_utils
-import titans
 
 
 class Trainer:
