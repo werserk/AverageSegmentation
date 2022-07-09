@@ -3,7 +3,7 @@ import random
 import albumentations as A
 from torch.utils.data import DataLoader
 
-from .dataset import CustomDataset
+from utils.dataset import CustomDataset
 
 
 def split_paths(cfg, paths):
@@ -24,14 +24,6 @@ def get_paths(cfg):
     return split_paths(cfg, paths)
 
 
-def register_transforms(cfg, transforms):
-    pass
-
-
-def register_paths(cfg, paths):
-    pass
-
-
 def get_transforms(cfg):
     # getting transforms from albumentations
     train_transforms = [getattr(A, item["name"])(**item["params"]) for item in cfg.train_transforms]
@@ -42,15 +34,9 @@ def get_transforms(cfg):
     return train_transforms, val_transforms
 
 
-def get_loaders(cfg, paths=None, transforms=None):
-    if transforms is None:  # if not custom transforms
-        transforms = get_transforms(cfg)
-    else:
-        register_transforms(cfg, transforms)
-    if paths is None:  # if not custom paths
-        paths = get_paths(cfg)
-    else:
-        register_paths(cfg, paths)
+def get_loaders(cfg):
+    paths = get_paths(cfg)
+    transforms = get_transforms(cfg)
 
     train_ds = CustomDataset(paths[0], transform=transforms[0])
     train_dl = DataLoader(train_ds, batch_size=cfg.batch_size, drop_last=True, shuffle=True)

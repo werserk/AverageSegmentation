@@ -10,14 +10,13 @@ from utils import cfg_utils
 
 
 class Trainer:
-    def __init__(self, cfg, data_loaders=None):
+    def __init__(self, cfg):
         self.cfg = cfg
         utils.set_seed(self.cfg.seed)
         self.resume = False
-        if data_loaders is None:
-            data_loaders = utils.get_loaders(self.cfg)
+
         self.device = torch.device(self.cfg.device)
-        self.train_dl, self.val_dl = data_loaders
+        self.train_dl, self.val_dl = utils.get_loaders(self.cfg)
         self.model, self.optimizer, self.scheduler = cfg_utils.get_setup(self.cfg)
 
         self.train_score_meter = titans.ScoreMeter(self.cfg)
