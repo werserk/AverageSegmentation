@@ -25,7 +25,6 @@ def get_paths(cfg):
 
 
 def get_transforms(cfg):
-    # getting transforms from albumentations
     train_transforms = [getattr(A, item["name"])(**item["params"]) for item in cfg.train_transforms]
     val_transforms = [getattr(A, item["name"])(**item["params"]) for item in cfg.val_transforms]
     if cfg.test_transforms:

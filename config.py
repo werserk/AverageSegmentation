@@ -5,15 +5,31 @@ import json
 class Config(dict):
     def __init__(self, *args, **kwargs):
         super(Config, self).__init__(*args, **kwargs)
+
+        # base
+        self.seed = 42
+        self.device = 'cuda'
+
         # saving
         self.save_folder = 'checkpoints/'
-        self.save_name = 'model'
+        self.save_name = 'Unet'
+
+        # loading
+        self.data_folder = 'data/'
 
         # training parameters
         self.epochs = 10
         self.start_epoch = 1
         self.end_epoch = 10
-        self.device = 'cuda'
+        self.batch_size = 1
+        self.split_sizes = (0.8, 0.2)
+        self.stop_earlystopping_step = 2
+
+
+        # augmentations
+        self.train_transforms = []
+        self.val_transforms = []
+        self.test_transforms = []
 
         # modules for stuff
         self.metric_module = 'modeling.metrics'
@@ -24,11 +40,15 @@ class Config(dict):
 
         # training stuff
         self.model = 'Unet'
-        self.model_params = ...
+        self.model_params = {}
         self.criterion = 'IoULoss'
+        self.criterion_params = {}
         self.metric = 'IoUScore'
+        self.metric_params = {}
         self.optimizer = 'Adam'
-        self.scheduler_module = 'OneCycleLR'
+        self.optimizer_params = {}
+        self.scheduler = 'OneCycleLR'
+        self.scheduler_params = {}
 
     def load(self, path=None):
         assert os.path.exists(path), f"{path} does not exist"
@@ -39,11 +59,7 @@ class Config(dict):
         return self
 
     def save(self, replace=False):
-        configs_path = os.path.join(self.save_folder, 'configs')
-        if not os.path.exists(configs_path):
-            os.makedirs(configs_path)
-            print(f"{configs_path} created successfully")
-        save_path = os.path.join(configs_path, self.save_name) + '.cfg'
+        save_path = os.path.join(self.save_path, self.save_name) + '.cfg'
         if not replace:
             assert not os.path.exists(save_path), f"{save_path} already exists"
         with open(save_path, 'w') as f:
