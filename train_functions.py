@@ -24,6 +24,10 @@ class Trainer:
         self.train_loss_meter = titans.LossMeter(self.cfg)
         self.val_loss_meter = titans.LossMeter(self.cfg)
 
+        self.early_stopping = titans.EarlyStopping(self.train_loss_meter,
+                                                   self.val_loss_meter,
+                                                   max_step=self.cfg.stop_earlystopping_step)
+
         self.start_epoch = 1
         try:
             self.end_epoch = self.cfg.end_epoch
@@ -51,8 +55,6 @@ class Trainer:
             wandb.init(project=self.cfg.wandb_project, config=self.cfg, name=self.cfg.save_name)
             wandb.watch(self.model, log_freq=100)
             print('[*] wandb is watching')
-
-        early_stopping_flag = 0
 
         for epoch in range(self.start_epoch, self.end_epoch + 1):
             # <<<<< TRAIN >>>>>
@@ -89,9 +91,8 @@ class Trainer:
                 self.save_state_dict(checkpoint_path, epoch)
 
             # weapon counter over-fitting
-            if self.train_loss_meter.is_loss_decreasing() and not self.val_loss_meter.is_loss_decreasing():
-                early_stopping_flag += 1
-            if early_stopping_flag == self.cfg.max_early_stopping:
+            self.early_stopping.step()
+            if self.early_stopping.stop_training():
                 print('[!] EarlyStopping')
                 break
 
@@ -99,7 +100,6 @@ class Trainer:
             wandb.finish()
 
         print('[X] Training is over.')
-
         return self.model
 
     def train_epoch(self):
