@@ -1,3 +1,5 @@
+import numpy as np
+
 import utils.cfgtools as cfg_utils
 
 
@@ -59,8 +61,8 @@ class ScoreMeter:
 class LossMeter:
     def __init__(self, cfg):
         self.criterion = cfg_utils.get_criterion(cfg)
-        self.last_loss = -1
-        self.best_loss = 0
+        self.last_loss = np.inf
+        self.best_loss = np.inf
         self.loss = 0
         self.k = 0
 
@@ -72,15 +74,18 @@ class LossMeter:
 
     def is_loss_best(self):
         loss = self.get_mean_loss()
-        if loss > self.best_loss:
+        if loss < self.best_loss:
             self.best_loss = loss
             return True
         return False
+
+    def is_loss_decreasing(self):
+        return self.get_mean_loss() < self.last_loss
 
     def get_mean_loss(self):
         return self.loss / self.k
 
     def null(self):
-        self.last_loss = self.loss
+        self.last_loss = self.get_mean_loss()
         self.loss = 0
         self.k = 0
