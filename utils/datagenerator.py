@@ -7,74 +7,53 @@ from torch.utils.data import DataLoader
 from .dataset import CustomDataset
 
 
-def get_paths(directories):
-    """
-    :param directories: list of directories or one directory, where data is
-    :return: [[image_path, mask_path], ...]
-    """
-    if isinstance(directories, str):
-        directories = [directories]
-    data = []
-    for directory in directories:
-        paths = os.listdir(directory)
-        # getting only image names without extension
-        image_names = [path.split('/')[-1].split('.')[0] for path in paths if 'mask' not in path]
-        for name in image_names:
-            image_path = os.path.join(directory, name + '.jpg')
-            mask_path = os.path.join(directory, name + '_mask.jpg')
+def split_paths(cfg, paths):
+    _len = len(paths)
+    splitted_paths = []
+    last_size = 0
+    assert sum(cfg.split_sizes) == 1 or sum(cfg.split_sizes) == _len, \
+        f'Split sizes give summary {sum(cfg.split_sizes)} but have to give 1 or length of paths'
+    for size in cfg.split_sizes:
+        splitted_paths.append(paths[last_size:last_size + int(_len * size)])
 
-            # checking for existing
-            if not os.path.exists(image_path):
-                print(f'{image_path} does not exist')
-                continue
-            if not os.path.exists(mask_path):
-                print(f'{mask_path} does not exist')
-                continue
-
-            data.append([os.path.join(directory, name + '.jpg'),
-                         os.path.join(directory, name + '_mask.jpg')])
-    return data
+    return splitted_paths
 
 
-def data_generator(cfg):
-    # getting train and val paths
-    train_paths = get_paths(cfg.data_folders_train)
-    val_paths = get_paths(cfg.data_folders_val)
-
-    # type correction
-    train_paths = np.asarray(train_paths)
-    val_paths = np.asarray(val_paths)
-
-    # shuffling
-    random.shuffle(train_paths)
-    random.shuffle(val_paths)
-    return train_paths, val_paths
+def get_paths(cfg):
+    paths = [os.path.join(cfg.data_folder, path) for path in os.listdir(cfg.data_folder)]
+    random.shuffle(paths)
+    return split_paths(cfg, paths)
 
 
 def get_transforms(cfg):
     # getting transforms from albumentations
-    pre_transforms = [getattr(A, item["name"])(**item["params"]) for item in cfg.pre_transforms]
-    augmentations = [getattr(A, item["name"])(**item["params"]) for item in cfg.augmentations]
-    post_transforms = [getattr(A, item["name"])(**item["params"]) for item in cfg.post_transforms]
-
-    # concatenate transforms
-    train = A.Compose(pre_transforms + augmentations + post_transforms)
-    test = A.Compose(pre_transforms + post_transforms)
-    return train, test
+    train_transforms = [getattr(A, item["name"])(**item["params"]) for item in cfg.train_transforms]
+    val_transforms = [getattr(A, item["name"])(**item["params"]) for item in cfg.val_transforms]
+    if cfg.test_transforms:
+        test_transforms = [getattr(A, item["name"])(**item["params"]) for item in cfg.test_transforms]
+        return train_transforms, val_transforms, test_transforms
+    return train_transforms, val_transforms
 
 
-def get_loaders(cfg):
-    # getting transforms
-    train_transforms, test_transforms = get_transforms(cfg)
+def get_loaders(cfg, paths=None, transforms=None):
+    if transforms is None:
+        transforms = get_transforms(cfg)
+    else:
+        register_transforms(cfg, transforms)
+    if paths is None:
+        paths = get_paths(cfg)
+    else:
+        register_paths(cfg, paths)
 
-    # getting train and val paths
-    train_paths, val_paths = data_generator(cfg)
+    train_ds = CustomDataset(paths[0], transform=transforms[0])
+    train_dl = DataLoader(train_ds, batch_size=cfg.batch_size, drop_last=True, shuffle=True)
 
-    # creating datasets
-    train_ds = CancerDataset(train_paths, transform=train_transforms)
-    val_ds = CancerDataset(val_paths, transform=train_transforms)
+    val_ds = CustomDataset(paths[1], transform=transforms[1])
+    val_dl = DataLoader(val_ds, batch_size=cfg.batch_size, drop_last=False)
 
-    # creating data loaders
-    train_dl = DataLoader(train_ds, batch_size=cfg.batch_size, drop_last=True)
-    val_dl = DataLoader(val_ds, batch_size=cfg.batch_size, drop_last=True)
+    if len(paths) == 3:
+        test_ds = CustomDataset(paths[2], transform=transforms[2])
+        test_dl = DataLoader(test_ds, batch_size=cfg.batch_size, drop_last=False)
+        return train_dl, val_dl, test_dl
+
     return train_dl, val_dl
