@@ -3,8 +3,13 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
+import cv2
+import numpy as np
+import torch
+from torch.utils.data import Dataset
 
-class CancerDataset(Dataset):
+
+class CustomDataset(Dataset):
     def __init__(self, paths, transform=None):
         self.paths = paths
         self.transform = transform
@@ -26,15 +31,21 @@ class CancerDataset(Dataset):
         else:
             raise TypeError(f"Unsupported type {type(paths)} for loading images")
 
-        # read in rgb
-        image = cv2.imread(image_path)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        if mask_path:
-            mask = cv2.imread(mask_path)
-            mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
-            mask = np.expand_dims(mask, axis=-1)
+        if any([image_path.endswith(x) for x in ('.jpg', '.png', '.jpeg')]):  # read in rgb
+            image = cv2.imread(image_path)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            if mask_path:
+                mask = cv2.imread(mask_path)
+                mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+                mask = np.expand_dims(mask, axis=-1)
+            else:
+                mask = np.zeros_like(image)
+        elif image_path.endswith('.npz'):
+            sample = np.load(image_path)
+            image = sample['image']
+            mask = sample['mask']
         else:
-            mask = np.zeros_like(image)
+            raise TypeError(f"Unsupported image type {image_path} for loading images")
 
         # using transform if needed
         if self.transform:
@@ -43,8 +54,13 @@ class CancerDataset(Dataset):
             mask = transformed['mask']
 
         # to [0..1]
-        image = image / 255
-        mask = mask > 128  # thresholding
+        if image.max() > 1:
+            image = image / 255
+        uniques = np.unique(mask)
+        for i, u in enumerate(uniques):
+            if u == 0:
+                continue
+            mask[mask == u] = mask[mask == u] // u * i
 
         # data type and dimension correction
         image = np.transpose(image, (2, 0, 1))
