@@ -1,10 +1,10 @@
 import os
 import random
 import numpy as np
-
 import albumentations as A
-from .dataset import CancerDataset
 from torch.utils.data import DataLoader
+
+from .dataset import CustomDataset
 
 
 def get_paths(directories):
