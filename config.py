@@ -13,6 +13,7 @@ class Config(dict):
         # saving
         self.save_folder = 'checkpoints/'
         self.save_name = 'Unet'
+        self.wandb_project = 'aseg_project'
 
         # loading
         self.data_folder = 'data/'
@@ -62,7 +63,7 @@ class Config(dict):
         return self
 
     def save(self, replace=False):
-        save_path = os.path.join(self.save_path, self.save_name) + '.cfg'
+        save_path = os.path.join(self.save_folder, self.save_name) + '.cfg'
         if not replace:
             assert not os.path.exists(save_path), f"{save_path} already exists"
         with open(save_path, 'w') as f:
