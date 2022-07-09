@@ -1,21 +1,29 @@
 import torch
 import wandb
 import tqdm
+
 import utils
+import utils.cfgtools as cfg_utils
+import titans
 
 
 class Trainer:
     def __init__(self, cfg, get_data_loaders=None):
         self.cfg = cfg
         utils.set_seed(self.cfg.seed)
-
         self.resume = False
         if get_data_loaders is None:
             get_data_loaders = utils.get_loaders
-
         self.device = torch.device(self.cfg.device)
         self.train_dl, self.val_dl = get_data_loaders(self.cfg)
-        self.model, self.optimizer, self.scheduler, self.metric, self.criterion = utils.get_setup(self.cfg)
+        self.model, self.optimizer, self.scheduler = cfg_utils.get_setup(self.cfg)
+
+        self.train_score_meter = titans.ScoreMeter(self.cfg)
+        self.val_score_meter = titans.ScoreMeter(self.cfg)
+
+        self.train_loss_meter = titans.LossMeter(self.cfg)
+        self.val_loss_meter = titans.LossMeter(self.cfg)
+
         self.start_epoch = 1
         try:
             self.end_epoch = self.cfg.end_epoch
@@ -42,89 +50,84 @@ class Trainer:
         if use_wandb:
             wandb.init(project=self.cfg.wandb_project, config=self.cfg, name=self.cfg.save_name)
             wandb.watch(self.model, log_freq=100)
-            print('[*] wandb is active')
+            print('[*] wandb is watching')
 
-        best_val_loss = 1e3
-        best_val_score = 0
-        last_train_loss = 0
-        last_val_loss = 1e3
         early_stopping_flag = 0
-        best_state_dict = self.model.state_dict()
 
         for epoch in range(self.start_epoch, self.end_epoch + 1):
             # <<<<< TRAIN >>>>>
-            train_loss, train_score = self.train_epoch()
+            self.train_epoch()
+            train_loss = self.train_loss_meter.get_mean_loss()
+            train_scores = self.train_score_meter.get_mean_stats()
 
             # <<<<< EVAL >>>>>
-            val_loss, val_score = self.eval_epoch()
-            metrics = {'train_score': train_score,
-                       'train_loss': train_loss,
-                       'val_score': val_score,
+            self.eval_epoch()
+            val_loss = self.val_loss_meter.get_mean_loss()
+            val_scores = self.val_score_meter.get_mean_stats()
+
+            # <<<<< LOGGING >>>>>
+            metrics = {'train_loss': train_loss,
                        'val_loss': val_loss,
                        'lr': self.scheduler.get_last_lr()[-1]}
+            for key in list(train_scores.keys()):
+                metrics[f'train_{key}'] = train_scores[key]
+            for key in list(val_scores.keys()):
+                metrics[f'val_{key}'] = val_scores[key]
 
             # log metrics to wandb
             if use_wandb:
                 wandb.log(metrics)
 
             # saving best weights by loss
-            if val_loss < best_val_loss:
+            if self.val_loss_meter.is_loss_best():
                 checkpoint_path = '_'.join([self.cfg.save_name, 'loss', str(val_loss)])
                 self.save_state_dict(checkpoint_path, epoch)
 
             # saving best weights by score
-            if val_score > best_val_score:
-                checkpoint_path = '_'.join([self.cfg.save_name, 'score', str(val_loss)])
+            if self.val_score_meter.is_score_best():
+                checkpoint_path = '_'.join([self.cfg.save_name, 'score'])
                 self.save_state_dict(checkpoint_path, epoch)
 
             # weapon counter over-fitting
-            if train_loss < last_train_loss and val_loss > last_val_loss:
+            if self.train_loss_meter.is_loss_decreasing() and not self.val_loss_meter.is_loss_decreasing():
                 early_stopping_flag += 1
             if early_stopping_flag == self.cfg.max_early_stopping:
-                print('[X] EarlyStopping')
+                print('[!] EarlyStopping')
                 break
-
-            last_train_loss = train_loss
-            last_val_loss = val_loss
 
         if use_wandb:
             wandb.finish()
 
+        print('[X] Training is over.')
+
         return self.model
 
     def train_epoch(self):
+        self.train_loss_meter.null()
+        self.train_score_meter.null()
         self.model.train()
-        loss_sum = 0
-        score_sum = 0
+
         for X, y in tqdm.tqdm(self.train_dl):
             X = X.to(self.device)
             y = y.to(self.device)
 
             self.optimizer.zero_grad()
             output = self.model(X)
-            loss = self.criterion(output, y)
+            self.train_score_meter.update(output > 0.5, y)
+            loss = self.train_loss_meter.update(output, y)
             loss.backward()
             self.optimizer.step()
             self.scheduler.step()
 
-            loss = loss.item()
-            score = self.metric(output > 0.5, y).mean().item()
-            loss_sum += loss
-            score_sum += score
-        return loss_sum / len(self.train_dl), score_sum / len(self.train_dl)
-
     def eval_epoch(self):
+        self.val_loss_meter.null()
+        self.val_score_meter.null()
         self.model.eval()
-        loss_sum = 0
-        score_sum = 0
         for X, y in tqdm.tqdm(self.val_dl):
             X = X.to(self.device)
             y = y.to(self.device)
 
             with torch.no_grad():
                 output = self.model(X)
-                loss = self.criterion(output, y).item()
-                score = self.metric(output > self.cfg.threshold, y).mean().item()
-                loss_sum += loss
-                score_sum += score
-        return loss_sum / len(self.val_dl), score_sum / len(self.val_dl)
+                self.val_loss_meter.update(output, y)
+                self.val_score_meter.update(output > 0.5, y)

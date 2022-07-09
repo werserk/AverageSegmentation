@@ -63,7 +63,7 @@ class LossMeter:
         self.criterion = cfg_utils.get_criterion(cfg)
         self.last_loss = np.inf
         self.best_loss = np.inf
-        self.loss = 0
+        self.loss = np.inf
         self.k = 0
 
     def update(self, y_pred, y_true):
