@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import torch
 from torch.utils.data import Dataset
+import random
 
 
 def read(paths):
@@ -106,6 +107,7 @@ class MultipleDataset(CustomDataset):
         for i, _paths in enumerate(paths):
             for path in _paths:
                 self.paths2ind[path] = i
+        random.shuffle(paths)
 
     def get_transforms(self, path):
         return self.original_transforms[self.paths2ind[path]]
