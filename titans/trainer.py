@@ -30,10 +30,10 @@ class Trainer:
                                                    max_step=self.cfg.stop_earlystopping_step)
 
         self.start_epoch = self.cfg.start_epoch
-        try:
-            self.end_epoch = self.cfg.end_epoch
-        except AttributeError:
+        if self.cfg.end_epoch == -1:
             self.end_epoch = self.cfg.epochs
+        else:
+            self.end_epoch = self.cfg.end_epoch
 
     def load_state_dict(self, checkpoint_path):
         checkpoint = torch.load(checkpoint_path)

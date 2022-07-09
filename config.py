@@ -20,11 +20,10 @@ class Config(dict):
         # training parameters
         self.epochs = 10
         self.start_epoch = 1
-        self.end_epoch = 10
+        self.end_epoch = -1
         self.batch_size = 1
         self.split_sizes = (0.8, 0.2)
         self.stop_earlystopping_step = 2
-
 
         # augmentations
         self.train_transforms = []
@@ -40,15 +39,19 @@ class Config(dict):
 
         # training stuff
         self.model = 'Unet'
-        self.model_params = {}
+        self.model_params = {'backbone': 'resnet101',
+                             'num_classes': 2,
+                             'in_channels': 3,
+                             'layers_to_freeze': 2,
+                             'encoder_weights': ''}
         self.criterion = 'IoULoss'
         self.criterion_params = {}
         self.metric = 'IoUScore'
         self.metric_params = {}
-        self.optimizer = 'Adam'
-        self.optimizer_params = {}
+        self.optimizer = 'RAdam'
+        self.optimizer_params = {'lr': 1e-3}
         self.scheduler = 'OneCycleLR'
-        self.scheduler_params = {}
+        self.scheduler_params = {'max_lr': 1e-3}
 
     def load(self, path=None):
         assert os.path.exists(path), f"{path} does not exist"
