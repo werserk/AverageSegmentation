@@ -1,6 +1,5 @@
 import os
 import random
-import numpy as np
 import albumentations as A
 from torch.utils.data import DataLoader
 
@@ -25,6 +24,14 @@ def get_paths(cfg):
     return split_paths(cfg, paths)
 
 
+def register_transforms(cfg, transforms):
+    pass
+
+
+def register_paths(cfg, paths):
+    pass
+
+
 def get_transforms(cfg):
     # getting transforms from albumentations
     train_transforms = [getattr(A, item["name"])(**item["params"]) for item in cfg.train_transforms]
@@ -36,11 +43,11 @@ def get_transforms(cfg):
 
 
 def get_loaders(cfg, paths=None, transforms=None):
-    if transforms is None:
+    if transforms is None:  # if not custom transforms
         transforms = get_transforms(cfg)
     else:
         register_transforms(cfg, transforms)
-    if paths is None:
+    if paths is None:  # if not custom paths
         paths = get_paths(cfg)
     else:
         register_paths(cfg, paths)

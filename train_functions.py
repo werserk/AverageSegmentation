@@ -1,8 +1,4 @@
-import os
-import time
 import torch
-import numpy as np
-import json
 import wandb
 import tqdm
 import utils
@@ -21,9 +17,12 @@ class Trainer:
         self.train_dl, self.val_dl = get_data_loaders(self.cfg)
         self.model, self.optimizer, self.scheduler, self.metric, self.criterion = utils.get_setup(self.cfg)
         self.start_epoch = 1
-        self.end_epoch = self.cfg.epochs + 1
+        try:
+            self.end_epoch = self.cfg.end_epoch
+        except AttributeError:
+            self.end_epoch = self.cfg.epochs
 
-    def load_state(self, checkpoint_path):
+    def load_state_dict(self, checkpoint_path):
         checkpoint = torch.load(checkpoint_path)
         self.resume = True
         self.start_epoch = checkpoint['epoch']
@@ -31,8 +30,13 @@ class Trainer:
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
 
-    def save_state(self, checkpoint_path):
-        pass
+    def save_state_dict(self, checkpoint_path, epoch):
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'scheduler_state_dict': self.scheduler.state_dict()
+        }, checkpoint_path)
 
     def main_loop(self, use_wandb):
         if use_wandb:
@@ -47,7 +51,7 @@ class Trainer:
         early_stopping_flag = 0
         best_state_dict = self.model.state_dict()
 
-        for epoch in range(self.start_epoch, self.end_epoch):
+        for epoch in range(self.start_epoch, self.end_epoch + 1):
             # <<<<< TRAIN >>>>>
             train_loss, train_score = self.train_epoch()
 
@@ -65,27 +69,28 @@ class Trainer:
 
             # saving best weights by loss
             if val_loss < best_val_loss:
-                pass
+                checkpoint_path = '_'.join([self.cfg.save_name, 'loss', str(val_loss)])
+                self.save_state_dict(checkpoint_path, epoch)
 
             # saving best weights by score
             if val_score > best_val_score:
-                pass
+                checkpoint_path = '_'.join([self.cfg.save_name, 'score', str(val_loss)])
+                self.save_state_dict(checkpoint_path, epoch)
 
             # weapon counter over-fitting
             if train_loss < last_train_loss and val_loss > last_val_loss:
                 early_stopping_flag += 1
             if early_stopping_flag == self.cfg.max_early_stopping:
-                print('[#] EarlyStopping')
+                print('[X] EarlyStopping')
                 break
 
             last_train_loss = train_loss
             last_val_loss = val_loss
 
-        # loading best weights
-        self.model.load_state_dict(best_state_dict)
-
         if use_wandb:
             wandb.finish()
+
+        return self.model
 
     def train_epoch(self):
         self.model.train()
