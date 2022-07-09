@@ -1,21 +1,23 @@
 import torch
 import wandb
 import tqdm
+import os
 
 import utils
-import utils.cfgtools as cfg_utils
+from utils import beaty_utils
+from utils import cfg_utils
 import titans
 
 
 class Trainer:
-    def __init__(self, cfg, get_data_loaders=None):
+    def __init__(self, cfg, data_loaders=None):
         self.cfg = cfg
         utils.set_seed(self.cfg.seed)
         self.resume = False
-        if get_data_loaders is None:
-            get_data_loaders = utils.get_loaders
+        if data_loaders is None:
+            data_loaders = utils.get_loaders(self.cfg)
         self.device = torch.device(self.cfg.device)
-        self.train_dl, self.val_dl = get_data_loaders(self.cfg)
+        self.train_dl, self.val_dl = data_loaders
         self.model, self.optimizer, self.scheduler = cfg_utils.get_setup(self.cfg)
 
         self.train_score_meter = titans.ScoreMeter(self.cfg)
@@ -28,7 +30,7 @@ class Trainer:
                                                    self.val_loss_meter,
                                                    max_step=self.cfg.stop_earlystopping_step)
 
-        self.start_epoch = 1
+        self.start_epoch = self.cfg.start_epoch
         try:
             self.end_epoch = self.cfg.end_epoch
         except AttributeError:
@@ -50,13 +52,17 @@ class Trainer:
             'scheduler_state_dict': self.scheduler.state_dict()
         }, checkpoint_path)
 
-    def main_loop(self, use_wandb):
+    def main_loop(self, use_wandb=False, verb=True):
         if use_wandb:
             wandb.init(project=self.cfg.wandb_project, config=self.cfg, name=self.cfg.save_name)
             wandb.watch(self.model, log_freq=100)
             print('[*] wandb is watching')
 
+        epoch_zeros_number = len(str(self.cfg.epochs))
         for epoch in range(self.start_epoch, self.end_epoch + 1):
+            # for beauty saving
+            str_epoch = str(epoch).rjust(epoch_zeros_number, '0')
+
             # <<<<< TRAIN >>>>>
             self.train_epoch()
             train_loss = self.train_loss_meter.get_mean_loss()
@@ -79,15 +85,20 @@ class Trainer:
             # log metrics to wandb
             if use_wandb:
                 wandb.log(metrics)
+            if verb:
+                print(f'[Epoch {str_epoch}]')
+                beaty_utils.pprint(metrics)
 
             # saving best weights by loss
             if self.val_loss_meter.is_loss_best():
-                checkpoint_path = '_'.join([self.cfg.save_name, 'loss', str(val_loss)])
+                checkpoint_path = '_'.join([f'[{str_epoch}]', self.cfg.save_name, 'loss', str(val_loss)])
+                checkpoint_path = os.path.join(self.cfg.save_folder, checkpoint_path)
                 self.save_state_dict(checkpoint_path, epoch)
 
             # saving best weights by score
             if self.val_score_meter.is_score_best():
-                checkpoint_path = '_'.join([self.cfg.save_name, 'score'])
+                checkpoint_path = '_'.join([f'[{str_epoch}]', self.cfg.save_name, 'score'])
+                checkpoint_path = os.path.join(self.cfg.save_folder, checkpoint_path)
                 self.save_state_dict(checkpoint_path, epoch)
 
             # weapon counter over-fitting

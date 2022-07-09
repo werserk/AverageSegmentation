@@ -3,12 +3,35 @@ import sys
 import torch
 import json
 
-import modeling.models
-import modeling.metrics
-import modeling.losses
-
 
 class Config(dict):
+    def __init__(self, *args, **kwargs):
+        super(Config, self).__init__(*args, **kwargs)
+        # saving
+        self.save_folder = 'checkpoints/'
+        self.save_name = 'model'
+
+        # training parameters
+        self.epochs = 10
+        self.start_epoch = 1
+        self.end_epoch = 10
+        self.device = 'cuda'
+
+        # modules for stuff
+        self.metric_module = 'modeling.metrics'
+        self.criterion_module = 'modeling.losses'
+        self.models_module = 'modeling.models'
+        self.optimizer_module = 'torch.optim'
+        self.scheduler_module = 'torch.optim.lr_scheduler'
+
+        # training stuff
+        self.model = 'Unet'
+        self.model_params = ...
+        self.criterion = 'IoULoss'
+        self.metric = 'IoUScore'
+        self.optimizer = 'Adam'
+        self.scheduler_module = 'OneCycleLR'
+
     def load(self, path=None):
         assert os.path.exists(path), f"{path} does not exist"
         with open(path) as f:
@@ -36,7 +59,7 @@ class Config(dict):
 
 
 def get_setup(cfg):
-    model = _get_model(cfg)(cfg=cfg).to(torch.device(cfg.device))
+    model = _get_model(cfg)(**cfg.model_params).to(torch.device(cfg.device))
     optimizer = _get_optimizer(cfg)(model.parameters(), **cfg.optimizer_params)
     scheduler = _get_scheduler(cfg)(optimizer, **cfg.scheduler_params)
     return model, optimizer, scheduler
@@ -51,24 +74,24 @@ def get_criterion(cfg):
 
 
 def _get_metric(cfg):
-    return getattr(sys.modules['modeling.metrics'], cfg.metric)
+    return getattr(sys.modules[cfg.metric_module], cfg.metric)
 
 
 def _get_criterion(cfg):
-    return getattr(sys.modules['modeling.losses'], cfg.criterion)
+    return getattr(sys.modules[cfg.criterion_module], cfg.criterion)
 
 
 def _get_model(cfg):
-    return getattr(sys.modules['modeling.models'], cfg.model)
+    return getattr(sys.modules[cfg.models_module], cfg.model)
 
 
 def _get_optimizer(cfg):
-    return getattr(sys.modules['torch.optim'], cfg.optimizer)
+    return getattr(sys.modules[cfg.optimizer_module], cfg.optimizer)
 
 
 def _get_scheduler(cfg):
     if cfg.scheduler:
-        return getattr(sys.modules['torch.optim.lr_scheduler'], cfg.scheduler)
+        return getattr(sys.modules[cfg.scheduler_module], cfg.scheduler)
     return FakeScheduler
 
 
