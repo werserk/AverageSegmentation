@@ -3,7 +3,8 @@ import wandb
 import tqdm
 import os
 
-import titans
+from ..titans.meters import ScoreMeter, LossMeter
+from ..titans.earlystopping import EarlyStopping
 from ..utils import set_seed, get_loaders
 from ..utils import beaty_utils
 from ..utils import cfg_utils
@@ -19,15 +20,15 @@ class Trainer:
         self.train_dl, self.val_dl = get_loaders(self.cfg)
         self.model, self.optimizer, self.scheduler = cfg_utils.get_setup(self.cfg)
 
-        self.train_score_meter = titans.ScoreMeter(self.cfg)
-        self.val_score_meter = titans.ScoreMeter(self.cfg)
+        self.train_score_meter = ScoreMeter(self.cfg)
+        self.val_score_meter = ScoreMeter(self.cfg)
 
-        self.train_loss_meter = titans.LossMeter(self.cfg)
-        self.val_loss_meter = titans.LossMeter(self.cfg)
+        self.train_loss_meter = LossMeter(self.cfg)
+        self.val_loss_meter = LossMeter(self.cfg)
 
-        self.early_stopping = titans.EarlyStopping(self.train_loss_meter,
-                                                   self.val_loss_meter,
-                                                   max_step=self.cfg.stop_earlystopping_step)
+        self.early_stopping = EarlyStopping(self.train_loss_meter,
+                                            self.val_loss_meter,
+                                            max_step=self.cfg.stop_earlystopping_step)
 
         self.start_epoch = self.cfg.start_epoch
         if self.cfg.end_epoch == -1:
