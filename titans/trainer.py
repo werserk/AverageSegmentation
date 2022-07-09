@@ -4,19 +4,19 @@ import tqdm
 import os
 
 import titans
-import utils
-from utils import beaty_utils
-from utils import cfg_utils
+from ..utils import set_seed, get_loaders
+from ..utils import beaty_utils
+from ..utils import cfg_utils
 
 
 class Trainer:
     def __init__(self, cfg):
         self.cfg = cfg
-        utils.set_seed(self.cfg.seed)
+        set_seed(self.cfg.seed)
         self.resume = False
 
         self.device = torch.device(self.cfg.device)
-        self.train_dl, self.val_dl = utils.get_loaders(self.cfg)
+        self.train_dl, self.val_dl = get_loaders(self.cfg)
         self.model, self.optimizer, self.scheduler = cfg_utils.get_setup(self.cfg)
 
         self.train_score_meter = titans.ScoreMeter(self.cfg)

@@ -1,6 +1,6 @@
 import numpy as np
 
-import utils.cfg_utils as cfg_utils
+from ..utils import cfg_utils
 
 
 def is_number(x):

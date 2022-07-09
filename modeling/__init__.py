@@ -1,3 +1,3 @@
-from models import *
-from criterions import *
-from metrics import *
+from .models import *
+from .criterions import *
+from .metrics import *

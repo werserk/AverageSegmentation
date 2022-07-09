@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cv2
 
-from utils import is_key_in_dict
+from ..utils import is_key_in_dict
 
 
 def minmax_normalize(image):

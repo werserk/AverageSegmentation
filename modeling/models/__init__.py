@@ -1,2 +1,2 @@
-from smp_models import *
-from kiunet import KiUnet
+from .smp_models import *
+from .kiunet import KiUnet

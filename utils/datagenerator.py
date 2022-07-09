@@ -3,7 +3,7 @@ import random
 import albumentations as A
 from torch.utils.data import DataLoader
 
-from utils.dataset import CustomDataset
+from .dataset import CustomDataset
 
 
 def split_paths(cfg, paths):
