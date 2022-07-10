@@ -15,7 +15,7 @@ class ScoreMeter:
     def __init__(self, cfg):
         functions = [cfg_utils.get_metric(cfg)]
         self.functions = functions
-        self.stats = {function.__name__: 0 for function in self.functions}
+        self.stats = {function.__class__.__name__: 0 for function in self.functions}
         self.best_mean_stats = self.stats.copy()
         self.k = 0
 
@@ -54,7 +54,7 @@ class ScoreMeter:
         return {key: self.stats[key] / self.k for key in list(self.stats.keys())}
 
     def null(self):
-        self.stats = {function.__name__: 0 for function in self.functions}
+        self.stats = {function.__class__.__name__: 0 for function in self.functions}
         self.k = 0
 
 
