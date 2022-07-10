@@ -51,7 +51,7 @@ class ScoreMeter:
             return False
 
     def get_mean_stats(self):
-        return {key: self.stats[key] / self.k for key in list(self.stats.keys())}
+        return {key: self.stats[key] / max(self.k, 1) for key in list(self.stats.keys())}
 
     def null(self):
         self.stats = {function.__class__.__name__: 0 for function in self.functions}
@@ -83,7 +83,7 @@ class LossMeter:
         return self.get_mean_loss() < self.last_loss
 
     def get_mean_loss(self):
-        return self.loss / self.k
+        return self.loss / max(self.k, 1)
 
     def null(self):
         self.last_loss = self.get_mean_loss()
