@@ -21,7 +21,7 @@ class ScoreMeter:
 
     def update(self, y_pred, y_true):
         for function in self.functions:
-            self.stats[function.__name__] += function(y_pred, y_true)
+            self.stats[function.__class__.__name__] += function(y_pred, y_true)
         self.k += 1
 
     def is_score_best(self, mode='any'):
