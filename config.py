@@ -63,7 +63,7 @@ class Config(dict):
         return self
 
     def save(self, replace=False):
-        save_path = os.path.join(self.save_folder, self.save_name) + '.cfg'
+        save_path = os.path.join(self.save_folder, self.save_name) + '.json'
         if not replace:
             assert not os.path.exists(save_path), f"{save_path} already exists"
         with open(save_path, 'w') as f:
