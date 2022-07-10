@@ -12,6 +12,8 @@ def split_paths(cfg, paths):
     last_size = 0
     assert sum(cfg.split_sizes) == 1 or sum(cfg.split_sizes) == _len, \
         f'Split sizes give summary {sum(cfg.split_sizes)} but have to give 1 or length of paths'
+    if sum(cfg.split_sizes) == _len:
+        _len = 1
     for size in cfg.split_sizes:
         splitted_paths.append(paths[last_size:last_size + int(_len * size)])
         last_size += int(_len * size)
