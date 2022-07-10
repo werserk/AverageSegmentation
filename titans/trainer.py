@@ -137,7 +137,7 @@ class Trainer:
             self.optimizer.zero_grad()
             output = self.model(X)
             self.train_score_meter.update(output > 0.5, y)
-            loss = self.criterion.update(output, y)
+            loss = self.criterion(output, y)
             self.train_loss_meter.update(loss)
             loss.backward()
             self.optimizer.step()
@@ -153,6 +153,6 @@ class Trainer:
 
             with torch.no_grad():
                 output = self.model(X)
-                loss = self.criterion.update(output, y)
+                loss = self.criterion(output, y)
                 self.val_loss_meter.update(loss)
                 self.val_score_meter.update(output > 0.5, y)
