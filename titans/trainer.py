@@ -99,13 +99,13 @@ class Trainer:
             if self.val_loss_meter.is_loss_best():
                 checkpoint_path = '_'.join([f'[{str_epoch}]', self.cfg.save_name, 'loss', str(val_loss)])
                 checkpoint_path = os.path.join(self.cfg.save_folder, checkpoint_path)
-                self.remember_state_dict(checkpoint_path, epoch)
+                self.remember_state_dict(checkpoint_path, epoch, mode='loss')
 
             # saving best weights by score
             if self.val_score_meter.is_score_best():
                 checkpoint_path = '_'.join([f'[{str_epoch}]', self.cfg.save_name, 'score'])
                 checkpoint_path = os.path.join(self.cfg.save_folder, checkpoint_path)
-                self.remember_state_dict(checkpoint_path, epoch)
+                self.remember_state_dict(checkpoint_path, epoch, mode='score')
 
             # weapon counter over-fitting
             self.early_stopping.step()
