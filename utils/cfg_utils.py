@@ -2,10 +2,11 @@ import sys
 import torch
 
 
-def get_setup(cfg):
+def get_setup(cfg, epochs, steps_per_epoch):
     model = _get_model(cfg)(**cfg.model_params).to(torch.device(cfg.device))
     optimizer = _get_optimizer(cfg)(model.parameters(), **cfg.optimizer_params)
-    scheduler = _get_scheduler(cfg)(optimizer, **cfg.scheduler_params)
+    scheduler = _get_scheduler(cfg)(optimizer, **cfg.scheduler_params,
+                                    epochs=epochs, steps_per_epoch=steps_per_epoch)
     return model, optimizer, scheduler
 
 

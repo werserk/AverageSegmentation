@@ -11,7 +11,7 @@ class Config(dict):
         self.device = 'cuda'
 
         # saving
-        self.save_folder = 'checkpoints/'
+        self.save_folder = 'aseg_checkpoints/'
         self.save_name = 'Unet'
         self.wandb_project = 'aseg_project'
 
