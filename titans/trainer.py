@@ -27,8 +27,8 @@ class Trainer:
         self.train_score_meter = ScoreMeter(self.cfg)
         self.val_score_meter = ScoreMeter(self.cfg)
 
-        self.train_loss_meter = LossMeter(self.cfg)
-        self.val_loss_meter = LossMeter(self.cfg)
+        self.train_loss_meter = LossMeter()
+        self.val_loss_meter = LossMeter()
 
         self.early_stopping = EarlyStopping(self.train_loss_meter,
                                             self.val_loss_meter,
