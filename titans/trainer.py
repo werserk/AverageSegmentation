@@ -22,6 +22,7 @@ class Trainer:
         self.model, self.optimizer, self.scheduler = cfg_utils.get_setup(self.cfg,
                                                                          self.cfg.epochs,
                                                                          len(self.train_dl))
+        self.criterion = cfg_utils.get_criterion(self.cfg)
 
         self.train_score_meter = ScoreMeter(self.cfg)
         self.val_score_meter = ScoreMeter(self.cfg)
@@ -136,7 +137,8 @@ class Trainer:
             self.optimizer.zero_grad()
             output = self.model(X)
             self.train_score_meter.update(output > 0.5, y)
-            loss = self.train_loss_meter.update(output, y)
+            loss = self.criterion.update(output, y)
+            self.train_loss_meter.update(loss)
             loss.backward()
             self.optimizer.step()
             self.scheduler.step()
@@ -151,5 +153,6 @@ class Trainer:
 
             with torch.no_grad():
                 output = self.model(X)
-                self.val_loss_meter.update(output, y)
+                loss = self.criterion.update(output, y)
+                self.val_loss_meter.update(loss)
                 self.val_score_meter.update(output > 0.5, y)

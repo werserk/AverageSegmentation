@@ -59,18 +59,15 @@ class ScoreMeter:
 
 
 class LossMeter:
-    def __init__(self, cfg):
-        self.criterion = cfg_utils.get_criterion(cfg)
+    def __init__(self):
         self.last_loss = np.inf
         self.best_loss = np.inf
         self.loss = np.inf
         self.k = 0
 
-    def update(self, y_pred, y_true):
-        current_loss = self.criterion(y_pred, y_true)
+    def update(self, current_loss):
         self.loss += current_loss.item()
         self.k += 1
-        return current_loss
 
     def is_loss_best(self):
         loss = self.get_mean_loss()
