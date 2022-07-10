@@ -15,6 +15,7 @@ class Trainer:
         self.cfg = cfg
         set_seed(self.cfg.seed)
         self.resume = False
+        self.cache = {'score': None, 'loss': None}
 
         self.device = torch.device(self.cfg.device)
         self.train_dl, self.val_dl = get_loaders(self.cfg)
@@ -46,13 +47,15 @@ class Trainer:
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
 
-    def save_state_dict(self, checkpoint_path, epoch):
-        torch.save({
-            'epoch': epoch,
-            'model_state_dict': self.model.state_dict(),
-            'optimizer_state_dict': self.optimizer.state_dict(),
-            'scheduler_state_dict': self.scheduler.state_dict()
-        }, checkpoint_path)
+    def remember_state_dict(self, checkpoint_path, epoch, mode):
+        self.cache[mode] = {'epoch': epoch,
+                            'model_state_dict': self.model.state_dict(),
+                            'optimizer_state_dict': self.optimizer.state_dict(),
+                            'scheduler_state_dict': self.scheduler.state_dict()
+                            }, checkpoint_path
+
+    def save_state_dict(self, mode):
+        torch.save(*self.cache[mode])
 
     def main_loop(self, use_wandb=False, verb=True):
         if use_wandb:
@@ -95,13 +98,13 @@ class Trainer:
             if self.val_loss_meter.is_loss_best():
                 checkpoint_path = '_'.join([f'[{str_epoch}]', self.cfg.save_name, 'loss', str(val_loss)])
                 checkpoint_path = os.path.join(self.cfg.save_folder, checkpoint_path)
-                self.save_state_dict(checkpoint_path, epoch)
+                self.remember_state_dict(checkpoint_path, epoch)
 
             # saving best weights by score
             if self.val_score_meter.is_score_best():
                 checkpoint_path = '_'.join([f'[{str_epoch}]', self.cfg.save_name, 'score'])
                 checkpoint_path = os.path.join(self.cfg.save_folder, checkpoint_path)
-                self.save_state_dict(checkpoint_path, epoch)
+                self.remember_state_dict(checkpoint_path, epoch)
 
             # weapon counter over-fitting
             self.early_stopping.step()
@@ -109,11 +112,17 @@ class Trainer:
                 print('[!] EarlyStopping')
                 break
 
+            if epoch % 5 == 0:
+                self.save_state_dict('loss')
+                self.save_state_dict('score')
+
+        self.save_state_dict('loss')
+        self.save_state_dict('score')
+
         if use_wandb:
             wandb.finish()
 
         print('[X] Training is over.')
-        return self.model
 
     def train_epoch(self):
         self.train_loss_meter.null()
