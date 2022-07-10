@@ -14,7 +14,7 @@ def split_paths(cfg, paths):
         f'Split sizes give summary {sum(cfg.split_sizes)} but have to give 1 or length of paths'
     for size in cfg.split_sizes:
         splitted_paths.append(paths[last_size:last_size + int(_len * size)])
-
+        last_size += int(_len * size)
     return splitted_paths
 
 
