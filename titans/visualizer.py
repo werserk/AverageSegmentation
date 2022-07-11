@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
+from gray2color import gray2color
 
 from ..utils import is_key_in_dict
 
@@ -29,18 +30,15 @@ class Visualizer:
         self.__dict__.update(kwargs)  # update them to call this function with custom setup
 
         # configure plot
-        if mask_pred is not None and mask_true is not None:
-            fig, axes = plt.subplots(1, 2)
-            fig.set_figwidth(self.figsize[0] * 2)
-        else:
-            fig, axes = plt.subplots(1, 1)
-            fig.set_figwidth(self.figsize[0])
+        k = int(mask_pred is not None and mask_true is not None) + 1
+        fig, axes = plt.subplots(1, k)
+        fig.set_figwidth(self.figsize[0] * k)
         fig.set_figheight(self.figsize[1])
 
         # (not) show axis
         if not self.axis:
-            for ax in axes:
-                ax.set_axis_off()
+            for i in range(k):
+                axes[i].set_axis_off()
 
         # visualize image
         image = self.normalize_function(image)
@@ -54,6 +52,13 @@ class Visualizer:
             axes[1].imshow(mask_true, alpha=self.alpha)
         plt.show()
         self.__dict__ = checkpoint  # come back to previous setup
+
+    def mask_transform(self, mask):
+        new_mask = np.zeros([mask.shape[0], mask.shape[1], 1])
+        for i in range(mask.shape[2]):
+            new_mask += ((mask[:, :, i] == 1) * i).astype(np.unit8)
+        colored_mask = gray2color(mask, use_pallet='COCO', custom_pallet=None)
+        return colored_mask
 
     def to_numpy(self, a):
         if isinstance(a, str):
@@ -75,7 +80,7 @@ class Visualizer:
                 batch = zip(*batch)
                 for image, mask in batch:
                     image = self.to_numpy(image)
-                    mask = self.to_numpy(mask)
+                    mask = self.mask_transform(self.to_numpy(mask))
                     self.imshow(image, mask, **kwargs)
                     k += 1
                     if k == image_number:
@@ -83,13 +88,13 @@ class Visualizer:
         if len(a) == 2:
             image, mask = a
             image = self.to_numpy(image)
-            mask = self.to_numpy(mask)
+            mask = self.mask_transform(self.to_numpy(mask))
             self.imshow(image, mask, **kwargs)
         elif len(a) == 3:
             image, mask_pred, mask_true = a
             image = self.to_numpy(image)
-            mask_pred = self.to_numpy(mask_pred)
-            mask_true = self.to_numpy(mask_true)
+            mask_pred = self.mask_transform(self.to_numpy(mask_pred))
+            mask_true = self.mask_transform(self.to_numpy(mask_true))
             self.imshow(image, mask_pred, mask_true, **kwargs)
         else:
             image = a

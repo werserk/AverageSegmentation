@@ -4,10 +4,11 @@ import torch.nn.functional as F
 
 
 class IoULoss(nn.Module):
-    def __init__(self, weight=None, size_average=True):
+    def __init__(self, smooth=1):
+        self.smooth = smooth
         super(IoULoss, self).__init__()
 
-    def forward(self, inputs, targets, smooth=1):
+    def forward(self, inputs, targets):
         # flatten label and prediction tensors
         assert inputs.shape == targets.shape, f"{inputs.shape} - {targets.shape}"
         inputs = inputs.view(-1)
@@ -19,13 +20,13 @@ class IoULoss(nn.Module):
         total = (inputs + targets).sum()
         union = total - intersection
 
-        IoU = (intersection + smooth) / (union + smooth)
+        IoU = (intersection + self.smooth) / (union + self.smooth)
 
         return 1 - IoU
 
 
 class FocalLoss(nn.Module):
-    def __init__(self, weight=None, size_average=True):
+    def __init__(self):
         super(FocalLoss, self).__init__()
 
     def forward(self, inputs, targets, alpha=0.8, gamma=2, smooth=1):
