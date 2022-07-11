@@ -164,5 +164,5 @@ class Trainer:
                 self.val_loss_meter.update(loss)
                 self.val_score_meter.update(output > 0.5, y)
                 if k < self.k:
-                    self.visualizer((X[0], output[0] > 0.5))
+                    self.visualizer((X[0], output[0] > 0.5, y[0]))
                     k += 1
