@@ -1,5 +1,5 @@
 class IoUScore(object):
-    def __init__(self, smooth):
+    def __init__(self, smooth=1):
         self.smooth = smooth
 
     def __call__(self, inputs, targets):
