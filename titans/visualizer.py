@@ -16,10 +16,10 @@ def minmax_normalize(image):
 
 
 class Visualizer:
-    figsize = (16, 16)
+    figsize = (6, 12)
     axis = False
     normalize_function = minmax_normalize
-    combined = True
+    combined = False
     overlap_percents = 100
 
     def __init__(self, **kwargs):

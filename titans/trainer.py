@@ -3,6 +3,7 @@ import wandb
 import tqdm
 import os
 
+from ..titans.visualizer import Visualizer
 from ..titans.meters import ScoreMeter, LossMeter
 from ..titans.earlystopping import EarlyStopping
 from ..utils import set_seed, get_loaders
@@ -16,6 +17,7 @@ class Trainer:
         set_seed(self.cfg.seed)
         self.resume = False
         self.cache = {'score': None, 'loss': None}
+        self.k = 0
 
         self.device = torch.device(self.cfg.device)
         self.train_dl, self.val_dl = get_loaders(self.cfg)
@@ -34,6 +36,8 @@ class Trainer:
         self.early_stopping = EarlyStopping(self.train_loss_meter,
                                             self.val_loss_meter,
                                             max_step=self.cfg.stop_earlystopping_step)
+
+        self.visualizer = Visualizer()
 
         self.start_epoch = self.cfg.start_epoch
         if self.cfg.end_epoch == -1:
@@ -59,7 +63,8 @@ class Trainer:
     def save_state_dict(self, mode):
         torch.save(*self.cache[mode])
 
-    def main_loop(self, use_wandb=False, verb=True):
+    def main_loop(self, use_wandb=False, verb=True, visualize=0):
+        self.k = visualize
         if use_wandb:
             wandb.init(project=self.cfg.wandb_project, config=self.cfg, name=self.cfg.save_name)
             wandb.watch(self.model, log_freq=100)
@@ -157,3 +162,4 @@ class Trainer:
                 loss = self.criterion(output, y)
                 self.val_loss_meter.update(loss)
                 self.val_score_meter.update(output > 0.5, y)
+                self.visualizer((X[0], output[0] > 0.5))
