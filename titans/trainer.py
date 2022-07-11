@@ -150,6 +150,7 @@ class Trainer:
             self.scheduler.step()
 
     def eval_epoch(self):
+        k = 0
         self.val_loss_meter.null()
         self.val_score_meter.null()
         self.model.eval()
@@ -162,4 +163,6 @@ class Trainer:
                 loss = self.criterion(output, y)
                 self.val_loss_meter.update(loss)
                 self.val_score_meter.update(output > 0.5, y)
-                self.visualizer((X[0], output[0] > 0.5))
+                if k < self.k:
+                    self.visualizer((X[0], output[0] > 0.5))
+                    k += 1

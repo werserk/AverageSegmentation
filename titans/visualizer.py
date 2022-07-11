@@ -16,42 +16,42 @@ def minmax_normalize(image):
 
 
 class Visualizer:
-    figsize = (6, 12)
-    axis = False
-    normalize_function = minmax_normalize
-    combined = False
-    overlap_percents = 100
-
     def __init__(self, **kwargs):
+        self.figsize = (6, 6)
+        self.axis = False
+        self.normalize_function = minmax_normalize
+        self.combined = False
+        self.alpha = 0.25
         self.__dict__.update(kwargs)
 
-    def imshow(self, image, mask=None, **kwargs):
+    def imshow(self, image, mask_pred=None, mask_true=None, **kwargs):
         checkpoint = self.__dict__  # remember global setup
         self.__dict__.update(kwargs)  # update them to call this function with custom setup
 
         # configure plot
-        fig, (ax1, ax2) = plt.subplots(1, 2)
+        if mask_pred and mask_true:
+            fig, axes = plt.subplots(1, 2)
+            fig.set_figwidth(self.figsize[0] * 2)
+        else:
+            fig, axes = plt.subplots(1, 1)
+            fig.set_figwidth(self.figsize[0])
         fig.set_figheight(self.figsize[1])
-        fig.set_figwidth(self.figsize[0])
 
         # (not) show axis
         if not self.axis:
-            ax1.set_axis_off()
-            ax2.set_axis_off()
+            for ax in axes:
+                ax.set_axis_off()
 
         # visualize image
         image = self.normalize_function(image)
-        ax1.imshow(image)
+        axes[0].imshow(image)
 
         # visualize mask
-        if mask is not None:
-            # combine mask and image if needed
-            if self.combined:
-                filtered_image = image * (1 - mask * self.overlap_percents / 100)
-                mask = mask * (image.max() * self.overlap_percents / 100)
-                mask = mask + filtered_image
-                mask = self.normalize_function(mask)
-            ax2.imshow(mask)
+        if mask_pred is not None:
+            axes[0].imshow(mask_pred, alpha=self.alpha)
+        if mask_true is not None:
+            axes[1].imshow(image)
+            axes[1].imshow(mask_true, alpha=self.alpha)
         plt.show()
         self.__dict__ = checkpoint  # come back to previous setup
 
@@ -85,6 +85,12 @@ class Visualizer:
             image = self.to_numpy(image)
             mask = self.to_numpy(mask)
             self.imshow(image, mask, **kwargs)
+        elif len(a) == 3:
+            image, mask_pred, mask_true = a
+            image = self.to_numpy(image)
+            mask_pred = self.to_numpy(mask_pred)
+            mask_true = self.to_numpy(mask_true)
+            self.imshow(image, mask_pred, mask_true, **kwargs)
         else:
             image = a
             image = self.to_numpy(image)
