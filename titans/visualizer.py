@@ -29,7 +29,7 @@ class Visualizer:
         self.__dict__.update(kwargs)  # update them to call this function with custom setup
 
         # configure plot
-        if mask_pred and mask_true:
+        if mask_pred is not None and mask_true is not None:
             fig, axes = plt.subplots(1, 2)
             fig.set_figwidth(self.figsize[0] * 2)
         else:
