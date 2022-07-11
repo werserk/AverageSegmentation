@@ -56,7 +56,7 @@ class Visualizer:
     def mask_transform(self, mask):
         new_mask = np.zeros([mask.shape[0], mask.shape[1], 1])
         for i in range(mask.shape[2]):
-            new_mask += ((mask[:, :, i] == 1) * i).astype(np.unit8)
+            new_mask += ((mask[:, :, i] == 1) * i).astype(np.uint8)
         colored_mask = gray2color(mask, use_pallet='COCO', custom_pallet=None)
         return colored_mask
 
