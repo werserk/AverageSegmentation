@@ -8,6 +8,8 @@ class EarlyStopping:
     def step(self):
         if self.train_loss_meter.is_loss_decreasing() and not self.val_loss_meter.is_loss_decreasing():
             self.current_step += 1
+        else:
+            self.current_step = 0
 
     def stop_training(self):
         return self.current_step >= self.max_step

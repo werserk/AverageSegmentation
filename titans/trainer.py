@@ -19,9 +19,11 @@ class Trainer:
 
         self.device = torch.device(self.cfg.device)
         self.train_dl, self.val_dl = get_loaders(self.cfg)
-        self.model, self.optimizer, self.scheduler = cfg_utils.get_setup(self.cfg,
-                                                                         self.cfg.epochs,
-                                                                         len(self.train_dl))
+        self.model = cfg_utils.get_model(self.cfg)
+        self.optimizer, self.scheduler = cfg_utils.get_setup(self.cfg,
+                                                             self.model.parameters(),
+                                                             self.cfg.epochs,
+                                                             len(self.train_dl))
         self.criterion = cfg_utils.get_criterion(self.cfg)
 
         self.train_score_meter = ScoreMeter(self.cfg)
