@@ -61,7 +61,7 @@ class Visualizer:
             assert bgr_img is not None, f"can't read '{a}'"
             a = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2RGB)
         elif isinstance(a, torch.Tensor) and len(a.shape) == 3:
-            a = np.array(a)
+            a = np.array(a.detach().cpu())
             a = np.transpose(a, (1, 2, 0))
         elif not (isinstance(a, np.ndarray) and len(a.shape) == 3):
             raise TypeError(f"Unknown type '{type(a)}' or not correct size '{a.shape}'")
