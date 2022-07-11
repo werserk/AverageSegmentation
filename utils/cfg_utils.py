@@ -7,13 +7,6 @@ def get_model(cfg):
     return model
 
 
-def get_setup(cfg, model_params, epochs, steps_per_epoch):
-    optimizer = _get_optimizer(cfg)(model_params, **cfg.optimizer_params)
-    scheduler = _get_scheduler(cfg)(optimizer, **cfg.scheduler_params,
-                                    epochs=epochs, steps_per_epoch=steps_per_epoch)
-    return optimizer, scheduler
-
-
 def get_metric(cfg):
     return _get_metric(cfg)(**cfg.metric_params)
 
