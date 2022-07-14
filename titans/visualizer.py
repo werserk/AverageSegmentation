@@ -34,11 +34,14 @@ class Visualizer:
         fig, axes = plt.subplots(1, k)
         fig.set_figwidth(self.figsize[0] * k)
         fig.set_figheight(self.figsize[1])
+        if k == 1:
+            axes = [axes]
 
         # (not) show axis
         if not self.axis:
-            for i in range(k):
-                axes[i].set_axis_off()
+            axes[0].set_axis_off()
+            if k == 2:
+                axes[1].set_axis_off()
 
         # visualize image
         image = self.normalize_function(image)
@@ -56,9 +59,8 @@ class Visualizer:
     def mask_transform(self, mask):
         new_mask = np.zeros([mask.shape[0], mask.shape[1], 1])
         for i in range(mask.shape[2]):
-            new_mask += ((mask[:, :, i] == 1) * i).astype(np.uint8)
-        colored_mask = gray2color(mask, use_pallet='COCO', custom_pallet=None)
-        return colored_mask
+            new_mask += (mask[:, :, i] == 1).astype(np.uint8) * i
+        return new_mask
 
     def to_numpy(self, a):
         if isinstance(a, str):
