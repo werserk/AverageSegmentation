@@ -1,56 +1,41 @@
 from torch import nn
 import torch
-import torch.nn.functional as F
 
 
 class IoULoss(nn.Module):
-    def __init__(self, weight=None, size_average=True):
-        super(IoULoss, self).__init__()
+    def __init__(self, eps=1e-7):
+        super().__init__()
+        self.eps = eps
 
-    def forward(self, inputs, targets, smooth=1):
-        # flatten label and prediction tensors
-        assert inputs.shape == targets.shape, f"{inputs.shape} - {targets.shape}"
-        inputs = inputs.view(-1)
-        targets = targets.view(-1)
-
-        # intersection is equivalent to True Positive count
-        # union is the mutually inclusive area of all labels & predictions
-        intersection = (inputs * targets).sum()
-        total = (inputs + targets).sum()
+    def __call__(self, y_pred, y_true):
+        assert y_pred.shape == y_true.shape, str(y_pred.shape) + ' != ' + str(y_true.shape)
+        intersection = torch.sum(y_true * y_pred, dim=[2, 3])
+        total = torch.sum(y_true, dim=[2, 3]) + torch.sum(y_pred, dim=[2, 3])
         union = total - intersection
-
-        IoU = (intersection + smooth) / (union + smooth)
-
-        return 1 - IoU
-
-
-class FocalLoss(nn.Module):
-    def __init__(self, weight=None, size_average=True):
-        super(FocalLoss, self).__init__()
-
-    def forward(self, inputs, targets, alpha=0.8, gamma=2, smooth=1):
-        # flatten label and prediction tensors
-        inputs = inputs.view(-1)
-        targets = targets.view(-1)
-
-        # first compute binary cross-entropy
-        BCE = F.binary_cross_entropy(inputs, targets, reduction='mean')
-        BCE_EXP = torch.exp(-BCE)
-        focal_loss = alpha * (1 - BCE_EXP) ** gamma * BCE
-
-        return focal_loss
+        iou = ((intersection + self.eps) / (union + self.eps)).mean(dim=1).mean(dim=0)
+        return 1 - iou
 
 
 class DiceLoss(nn.Module):
-    def __init__(self, weight=None, size_average=True):
-        super(DiceLoss, self).__init__()
+    def __init__(self, eps=1e-7):
+        super().__init__()
+        self.eps = eps
 
-    def forward(self, inputs, targets, smooth=1):
-        # flatten label and prediction tensors
-        inputs = inputs.view(-1)
-        targets = targets.view(-1)
-
-        intersection = (inputs * targets).sum()
-        dice = (2. * intersection + smooth) / (inputs.sum() + targets.sum() + smooth)
-
+    def __call__(self, y_pred, y_true):
+        assert y_pred.shape == y_true.shape, str(y_pred.shape) + ' != ' + str(y_true.shape)
+        intersection = torch.sum(y_true * y_pred, dim=[2, 3])
+        total = torch.sum(y_true, dim=[2, 3]) + torch.sum(y_pred, dim=[2, 3])
+        dice = ((intersection + self.eps) / (total + self.eps)).mean(dim=1).mean(dim=0)
         return 1 - dice
+
+
+class CrossEntropyLoss(torch.nn.CrossEntropyLoss):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def __call__(self, *args, **kwargs):
+        inputs = args[0]
+        targets = args[1]
+        targets = targets.to(torch.long)
+        targets = torch.argmax(targets, dim=1)
+        return super().__call__(inputs, targets, *args[2:], **kwargs)
