@@ -48,22 +48,28 @@ class Trainer:
     def load_state_dict(self, checkpoint_path):
         checkpoint = torch.load(checkpoint_path)
         self.resume = True
-        self.start_epoch = checkpoint['epoch']
         self.model.load_state_dict(checkpoint['model_state_dict'])
-        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+        try:
+            self.start_epoch = checkpoint['epoch']
+            self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+        except KeyError:
+            pass
 
-    def remember_state_dict(self, checkpoint_path, epoch, mode):
-        self.cache[mode] = {'epoch': epoch,
-                            'model_state_dict': self.model.state_dict(),
-                            'optimizer_state_dict': self.optimizer.state_dict(),
-                            'scheduler_state_dict': self.scheduler.state_dict()
-                            }, checkpoint_path
+    def remember_state_dict(self, checkpoint_path, epoch, mode, only_model=True):
+        if not only_model:
+            self.cache[mode] = {'epoch': epoch,
+                                'model_state_dict': self.model.state_dict(),
+                                'optimizer_state_dict': self.optimizer.state_dict(),
+                                'scheduler_state_dict': self.scheduler.state_dict()
+                                }, checkpoint_path
+        else:
+            self.cache[mode] = {'model_state_dict': self.model.state_dict()}
 
     def save_state_dict(self, mode):
         torch.save(*self.cache[mode])
 
-    def main_loop(self, use_wandb=False, verb=True, visualize=0):
+    def main_loop(self, use_wandb=False, verb=True, visualize=0, save_only_model=True):
         self.k = visualize
         if use_wandb:
             wandb.init(project=self.cfg.wandb_project, config=self.cfg, name=self.cfg.save_name)
@@ -105,13 +111,13 @@ class Trainer:
             if self.val_loss_meter.is_loss_best():
                 checkpoint_path = '_'.join([f'[{str_epoch}]', self.cfg.save_name, 'loss', str(val_loss)])
                 checkpoint_path = os.path.join(self.cfg.save_folder, checkpoint_path)
-                self.remember_state_dict(checkpoint_path, epoch, mode='loss')
+                self.remember_state_dict(checkpoint_path, epoch, mode='loss', only_model=save_only_model)
 
             # saving best weights by score
             if self.val_score_meter.is_score_best():
                 checkpoint_path = '_'.join([f'[{str_epoch}]', self.cfg.save_name, 'score'])
                 checkpoint_path = os.path.join(self.cfg.save_folder, checkpoint_path)
-                self.remember_state_dict(checkpoint_path, epoch, mode='score')
+                self.remember_state_dict(checkpoint_path, epoch, mode='score', only_model=save_only_model)
 
             # weapon counter over-fitting
             self.early_stopping.step()
