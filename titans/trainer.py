@@ -68,7 +68,7 @@ class Trainer:
 
     def save_state_dict(self, mode):
         torch.save(*self.cache[mode], os.path.join(self.cfg.save_folder,
-                                                   self.cfg.save_name + '.cfg'))
+                                                   self.cfg.save_name + '.json'))
 
     def main_loop(self, use_wandb=False, verb=True, visualize=0, save_only_model=True):
         self.k = visualize
