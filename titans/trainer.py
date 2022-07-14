@@ -67,7 +67,8 @@ class Trainer:
             self.cache[mode] = {'model_state_dict': self.model.state_dict()}
 
     def save_state_dict(self, mode):
-        torch.save(*self.cache[mode])
+        torch.save(*self.cache[mode], os.path.join(self.cfg.save_folder,
+                                                   self.cfg.save_name + '.cfg'))
 
     def main_loop(self, use_wandb=False, verb=True, visualize=0, save_only_model=True):
         self.k = visualize
@@ -92,8 +93,8 @@ class Trainer:
             val_scores = self.val_score_meter.get_mean_stats()
 
             # <<<<< LOGGING >>>>>
-            metrics = {'train_loss': train_loss,
-                       'val_loss': val_loss,
+            metrics = {f'train_{self.criterion.__class__.__name__}': train_loss,
+                       f'val_{self.criterion.__class__.__name__}': val_loss,
                        'lr': self.scheduler.get_last_lr()[-1]}
             for key in list(train_scores.keys()):
                 metrics[f'train_{key}'] = train_scores[key]
@@ -124,10 +125,6 @@ class Trainer:
             if self.early_stopping.stop_training():
                 print('[!] EarlyStopping')
                 break
-
-            if epoch % 5 == 0:
-                self.save_state_dict('loss')
-                self.save_state_dict('score')
 
         self.save_state_dict('loss')
         self.save_state_dict('score')
