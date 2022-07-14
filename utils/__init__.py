@@ -1,3 +1,3 @@
-from .datagenerator import get_loaders, get_paths
+from .datagenerator import *
 from .hard_utils import *
 from .beaty_utils import *

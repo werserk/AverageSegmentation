@@ -12,9 +12,11 @@ def split_paths(cfg, paths):
     last_size = 0
     assert sum(cfg.split_sizes) == 1 or sum(cfg.split_sizes) == _len, \
         f'Split sizes give summary {sum(cfg.split_sizes)} but have to give 1 or length of paths'
+    if sum(cfg.split_sizes) == _len:
+        _len = 1
     for size in cfg.split_sizes:
         splitted_paths.append(paths[last_size:last_size + int(_len * size)])
-
+        last_size += int(_len * size)
     return splitted_paths
 
 
@@ -24,33 +26,18 @@ def get_paths(cfg):
     return split_paths(cfg, paths)
 
 
-def register_transforms(cfg, transforms):
-    pass
-
-
-def register_paths(cfg, paths):
-    pass
-
-
 def get_transforms(cfg):
-    # getting transforms from albumentations
-    train_transforms = [getattr(A, item["name"])(**item["params"]) for item in cfg.train_transforms]
-    val_transforms = [getattr(A, item["name"])(**item["params"]) for item in cfg.val_transforms]
+    train_transforms = A.Compose([getattr(A, item["name"])(**item["params"]) for item in cfg.train_transforms])
+    val_transforms = A.Compose([getattr(A, item["name"])(**item["params"]) for item in cfg.val_transforms])
     if cfg.test_transforms:
-        test_transforms = [getattr(A, item["name"])(**item["params"]) for item in cfg.test_transforms]
+        test_transforms = A.Compose([getattr(A, item["name"])(**item["params"]) for item in cfg.test_transforms])
         return train_transforms, val_transforms, test_transforms
     return train_transforms, val_transforms
 
 
-def get_loaders(cfg, paths=None, transforms=None):
-    if transforms is None:  # if not custom transforms
-        transforms = get_transforms(cfg)
-    else:
-        register_transforms(cfg, transforms)
-    if paths is None:  # if not custom paths
-        paths = get_paths(cfg)
-    else:
-        register_paths(cfg, paths)
+def get_loaders(cfg):
+    paths = get_paths(cfg)
+    transforms = get_transforms(cfg)
 
     train_ds = CustomDataset(paths[0], transform=transforms[0])
     train_dl = DataLoader(train_ds, batch_size=cfg.batch_size, drop_last=True, shuffle=True)

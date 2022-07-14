@@ -2,11 +2,9 @@ import sys
 import torch
 
 
-def get_setup(cfg):
+def get_model(cfg):
     model = _get_model(cfg)(**cfg.model_params).to(torch.device(cfg.device))
-    optimizer = _get_optimizer(cfg)(model.parameters(), **cfg.optimizer_params)
-    scheduler = _get_scheduler(cfg)(optimizer, **cfg.scheduler_params)
-    return model, optimizer, scheduler
+    return model
 
 
 def get_metric(cfg):

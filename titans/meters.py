@@ -1,6 +1,6 @@
 import numpy as np
 
-import utils.cfg_utils as cfg_utils
+from ..utils import cfg_utils
 
 
 def is_number(x):
@@ -15,13 +15,13 @@ class ScoreMeter:
     def __init__(self, cfg):
         functions = [cfg_utils.get_metric(cfg)]
         self.functions = functions
-        self.stats = {function.__name__: 0 for function in self.functions}
+        self.stats = {function.__class__.__name__: 0 for function in self.functions}
         self.best_mean_stats = self.stats.copy()
         self.k = 0
 
     def update(self, y_pred, y_true):
         for function in self.functions:
-            self.stats[function.__name__] += function(y_pred, y_true)
+            self.stats[function.__class__.__name__] += function(y_pred, y_true)
         self.k += 1
 
     def is_score_best(self, mode='any'):
@@ -51,26 +51,23 @@ class ScoreMeter:
             return False
 
     def get_mean_stats(self):
-        return {key: self.stats[key] / self.k for key in list(self.stats.keys())}
+        return {key: self.stats[key] / max(self.k, 1) for key in list(self.stats.keys())}
 
     def null(self):
-        self.stats = {function.__name__: 0 for function in self.functions}
+        self.stats = {function.__class__.__name__: 0 for function in self.functions}
         self.k = 0
 
 
 class LossMeter:
-    def __init__(self, cfg):
-        self.criterion = cfg_utils.get_criterion(cfg)
+    def __init__(self):
         self.last_loss = np.inf
         self.best_loss = np.inf
         self.loss = np.inf
         self.k = 0
 
-    def update(self, y_pred, y_true):
-        current_loss = self.criterion(y_pred, y_true)
+    def update(self, current_loss):
         self.loss += current_loss.item()
         self.k += 1
-        return current_loss
 
     def is_loss_best(self):
         loss = self.get_mean_loss()
@@ -83,7 +80,7 @@ class LossMeter:
         return self.get_mean_loss() < self.last_loss
 
     def get_mean_loss(self):
-        return self.loss / self.k
+        return self.loss / max(self.k, 1)
 
     def null(self):
         self.last_loss = self.get_mean_loss()

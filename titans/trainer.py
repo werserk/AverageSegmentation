@@ -3,38 +3,47 @@ import wandb
 import tqdm
 import os
 
-import titans
-import utils
-from utils import beaty_utils
-from utils import cfg_utils
+from ..titans.visualizer import Visualizer
+from ..titans.meters import ScoreMeter, LossMeter
+from ..titans.earlystopping import EarlyStopping
+from ..utils import set_seed, get_loaders
+from ..utils import beaty_utils
+from ..utils import cfg_utils
 
 
 class Trainer:
-    def __init__(self, cfg, data_loaders=None):
+    def __init__(self, cfg):
         self.cfg = cfg
-        utils.set_seed(self.cfg.seed)
+        set_seed(self.cfg.seed)
         self.resume = False
-        if data_loaders is None:
-            data_loaders = utils.get_loaders(self.cfg)
+        self.cache = {'score': None, 'loss': None}
+        self.k = 0
+
         self.device = torch.device(self.cfg.device)
-        self.train_dl, self.val_dl = data_loaders
-        self.model, self.optimizer, self.scheduler = cfg_utils.get_setup(self.cfg)
+        self.train_dl, self.val_dl = get_loaders(self.cfg)
+        self.model = cfg_utils.get_model(self.cfg)
+        self.optimizer = cfg_utils._get_optimizer(cfg)(self.model.parameters(), **self.cfg.optimizer_params)
+        self.scheduler = cfg_utils._get_scheduler(cfg)(self.optimizer, **self.cfg.scheduler_params,
+                                                       epochs=self.cfg.epochs, steps_per_epoch=len(self.train_dl))
+        self.criterion = cfg_utils.get_criterion(self.cfg)
 
-        self.train_score_meter = titans.ScoreMeter(self.cfg)
-        self.val_score_meter = titans.ScoreMeter(self.cfg)
+        self.train_score_meter = ScoreMeter(self.cfg)
+        self.val_score_meter = ScoreMeter(self.cfg)
 
-        self.train_loss_meter = titans.LossMeter(self.cfg)
-        self.val_loss_meter = titans.LossMeter(self.cfg)
+        self.train_loss_meter = LossMeter()
+        self.val_loss_meter = LossMeter()
 
-        self.early_stopping = titans.EarlyStopping(self.train_loss_meter,
-                                                   self.val_loss_meter,
-                                                   max_step=self.cfg.stop_earlystopping_step)
+        self.early_stopping = EarlyStopping(self.train_loss_meter,
+                                            self.val_loss_meter,
+                                            max_step=self.cfg.stop_earlystopping_step)
+
+        self.visualizer = Visualizer()
 
         self.start_epoch = self.cfg.start_epoch
-        try:
-            self.end_epoch = self.cfg.end_epoch
-        except AttributeError:
+        if self.cfg.end_epoch == -1:
             self.end_epoch = self.cfg.epochs
+        else:
+            self.end_epoch = self.cfg.end_epoch
 
     def load_state_dict(self, checkpoint_path):
         checkpoint = torch.load(checkpoint_path)
@@ -44,15 +53,18 @@ class Trainer:
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
 
-    def save_state_dict(self, checkpoint_path, epoch):
-        torch.save({
-            'epoch': epoch,
-            'model_state_dict': self.model.state_dict(),
-            'optimizer_state_dict': self.optimizer.state_dict(),
-            'scheduler_state_dict': self.scheduler.state_dict()
-        }, checkpoint_path)
+    def remember_state_dict(self, checkpoint_path, epoch, mode):
+        self.cache[mode] = {'epoch': epoch,
+                            'model_state_dict': self.model.state_dict(),
+                            'optimizer_state_dict': self.optimizer.state_dict(),
+                            'scheduler_state_dict': self.scheduler.state_dict()
+                            }, checkpoint_path
 
-    def main_loop(self, use_wandb=False, verb=True):
+    def save_state_dict(self, mode):
+        torch.save(*self.cache[mode])
+
+    def main_loop(self, use_wandb=False, verb=True, visualize=0):
+        self.k = visualize
         if use_wandb:
             wandb.init(project=self.cfg.wandb_project, config=self.cfg, name=self.cfg.save_name)
             wandb.watch(self.model, log_freq=100)
@@ -93,13 +105,13 @@ class Trainer:
             if self.val_loss_meter.is_loss_best():
                 checkpoint_path = '_'.join([f'[{str_epoch}]', self.cfg.save_name, 'loss', str(val_loss)])
                 checkpoint_path = os.path.join(self.cfg.save_folder, checkpoint_path)
-                self.save_state_dict(checkpoint_path, epoch)
+                self.remember_state_dict(checkpoint_path, epoch, mode='loss')
 
             # saving best weights by score
             if self.val_score_meter.is_score_best():
                 checkpoint_path = '_'.join([f'[{str_epoch}]', self.cfg.save_name, 'score'])
                 checkpoint_path = os.path.join(self.cfg.save_folder, checkpoint_path)
-                self.save_state_dict(checkpoint_path, epoch)
+                self.remember_state_dict(checkpoint_path, epoch, mode='score')
 
             # weapon counter over-fitting
             self.early_stopping.step()
@@ -107,11 +119,17 @@ class Trainer:
                 print('[!] EarlyStopping')
                 break
 
+            if epoch % 5 == 0:
+                self.save_state_dict('loss')
+                self.save_state_dict('score')
+
+        self.save_state_dict('loss')
+        self.save_state_dict('score')
+
         if use_wandb:
             wandb.finish()
 
         print('[X] Training is over.')
-        return self.model
 
     def train_epoch(self):
         self.train_loss_meter.null()
@@ -125,12 +143,14 @@ class Trainer:
             self.optimizer.zero_grad()
             output = self.model(X)
             self.train_score_meter.update(output > 0.5, y)
-            loss = self.train_loss_meter.update(output, y)
+            loss = self.criterion(output, y)
+            self.train_loss_meter.update(loss)
             loss.backward()
             self.optimizer.step()
             self.scheduler.step()
 
     def eval_epoch(self):
+        k = 0
         self.val_loss_meter.null()
         self.val_score_meter.null()
         self.model.eval()
@@ -140,5 +160,9 @@ class Trainer:
 
             with torch.no_grad():
                 output = self.model(X)
-                self.val_loss_meter.update(output, y)
+                loss = self.criterion(output, y)
+                self.val_loss_meter.update(loss)
                 self.val_score_meter.update(output > 0.5, y)
+                if k < self.k:
+                    self.visualizer((X[0], output[0] > 0.5, y[0]))
+                    k += 1
