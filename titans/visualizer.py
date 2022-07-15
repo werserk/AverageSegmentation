@@ -2,7 +2,6 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
-from gray2color import gray2color
 
 from ..utils import is_key_in_dict
 
@@ -57,9 +56,7 @@ class Visualizer:
         self.__dict__ = checkpoint  # come back to previous setup
 
     def mask_transform(self, mask):
-        new_mask = np.zeros([mask.shape[0], mask.shape[1], 1])
-        for i in range(mask.shape[2]):
-            new_mask += (mask[:, :, i] == 1).astype(np.uint8) * i
+        new_mask = np.argmax(mask, axis=-1)
         return new_mask
 
     def to_numpy(self, a):

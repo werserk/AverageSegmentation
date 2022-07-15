@@ -145,7 +145,7 @@ class Trainer:
 
             self.optimizer.zero_grad()
             output = self.model(X)
-            self.train_score_meter.update(output > 0.5, y)
+            self.train_score_meter.update(output, y)
             loss = self.criterion(output, y)
             self.train_loss_meter.update(loss)
             loss.backward()
@@ -165,7 +165,7 @@ class Trainer:
                 output = self.model(X)
                 loss = self.criterion(output, y)
                 self.val_loss_meter.update(loss)
-                self.val_score_meter.update(output > 0.5, y)
+                self.val_score_meter.update(output, y)
                 if k < self.k:
-                    self.visualizer((X[0], output[0] > 0.5, y[0]))
+                    self.visualizer((X[0], output[0], y[0]))
                     k += 1
