@@ -20,6 +20,9 @@ class ScoreMeter:
         self.k = 0
 
     def update(self, y_pred, y_true):
+        # remove background class
+        y_pred = y_pred[:, :, :, 1:]
+        y_true = y_true[:, :, :, 1:]
         for function in self.functions:
             self.stats[function.__class__.__name__] += function(y_pred, y_true)
         self.k += 1
