@@ -22,8 +22,7 @@ class ScoreMeter:
 
     def update(self, y_pred, y_true):
         # remove background class
-        _y_pred = torch.max(y_pred, dim=1)
-        y_pred = (y_pred == _y_pred).type(torch.uint8)
+        y_pred = y_pred > 0.5
         y_pred = y_pred[:, :, :, 1:]
         y_true = y_true[:, :, :, 1:]
         for function in self.functions:
